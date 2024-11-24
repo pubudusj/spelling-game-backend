@@ -1,4 +1,4 @@
-"""State machine stack to generate words."""
+"""Construct for WordsGeneratorStateMachine."""
 
 from dataclasses import dataclass
 from aws_cdk import (
@@ -13,29 +13,30 @@ from aws_cdk import (
     aws_iam as iam,
     aws_dynamodb as ddb,
 )
+from constructs import Construct
 
 
 @dataclass
-class GenerateWordsStateMachineStackParams:
-    """Parameters for the GenerateWordsStateMachineStackParams."""
+class WordsGeneratorStateMachineParams:
+    """Parameters for the WordsGeneratorStateMachine."""
 
-    words_s3_bucket: s3.Bucket
+    s3_bucket: s3.Bucket
     dynamodb_table: ddb.Table
-    notification_sns: sns.Topic
+    sns_topic: sns.Topic
 
 
-class GenerateWordsStateMachineStack(NestedStack):
-    """The generate words state machine nested stack."""
+class WordsGeneratorStateMachine(Construct):
+    """State machine for words generation."""
 
     def __init__(
         self,
         scope: Stack,
         construct_id: str,
-        params: GenerateWordsStateMachineStackParams,
+        params=WordsGeneratorStateMachineParams,
         **kwargs,
     ) -> None:
-        """Construct a new StateMachine."""
-        super().__init__(scope, construct_id, **kwargs)
+        """Construct a new WordsGeneratorStateMachine."""
+        super().__init__(scope=scope, id=construct_id, **kwargs)
 
         model = bedrock.FoundationModel.from_foundation_model_id(
             self,
@@ -135,7 +136,7 @@ class GenerateWordsStateMachineStack(NestedStack):
         failed_sns_notification = tasks.SnsPublish(
             self,
             "FailedNotificationToSNS",
-            topic=params.notification_sns,
+            topic=params.sns_topic,
             message=sfn.TaskInput.from_object(
                 {
                     "output": sfn.JsonPath.object_at("$.output"),
@@ -168,7 +169,7 @@ class GenerateWordsStateMachineStack(NestedStack):
                 "Engine": "standard",
                 "LanguageCode": "nl-NL",
                 "OutputFormat": "mp3",
-                "OutputS3BucketName": params.words_s3_bucket.bucket_name,
+                "OutputS3BucketName": params.s3_bucket.bucket_name,
                 "OutputS3KeyPrefix": "nl-NL/",
                 "Text": sfn.JsonPath.string_at("$.word"),
                 "VoiceId": "Ruben",
@@ -186,7 +187,7 @@ class GenerateWordsStateMachineStack(NestedStack):
                 "Engine": "standard",
                 "LanguageCode": "en-US",
                 "OutputFormat": "mp3",
-                "OutputS3BucketName": params.words_s3_bucket.bucket_name,
+                "OutputS3BucketName": params.s3_bucket.bucket_name,
                 "OutputS3KeyPrefix": "en-US/",
                 "Text": sfn.JsonPath.string_at("$.word"),
                 "VoiceId": "Matthew",
@@ -239,8 +240,8 @@ class GenerateWordsStateMachineStack(NestedStack):
                         iam.PolicyStatement(
                             actions=["s3:PutObject"],
                             resources=[
-                                f"arn:aws:s3:::{params.words_s3_bucket.bucket_name}",
-                                f"arn:aws:s3:::{params.words_s3_bucket.bucket_name}/*",
+                                f"arn:aws:s3:::{params.s3_bucket.bucket_name}",
+                                f"arn:aws:s3:::{params.s3_bucket.bucket_name}/*",
                             ],
                         ),
                     ]

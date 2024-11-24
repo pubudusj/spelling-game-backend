@@ -1,41 +1,41 @@
-"""Storage stack to manage scheduler related resources."""
+"""Construct for WordsGeneratorScheduler."""
 
 import json
 
 from dataclasses import dataclass
 from aws_cdk import (
     Stack,
-    NestedStack,
     aws_scheduler as scheduler,
     aws_iam as iam,
     aws_stepfunctions as sfn,
 )
+from constructs import Construct
 
 
 @dataclass
-class SchedulerStackParams:
-    """Parameters for the SchedulerStackParams."""
+class WordsGeneratorSchedulerParams:
+    """Parameters for the WordsGeneratorScheduler."""
 
     state_machine: sfn.StateMachine
 
 
-class SchedulerStack(NestedStack):
-    """The scheduler nested stack."""
+class WordsGeneratorScheduler(Construct):
+    """Schedules for words generation."""
 
     def __init__(
         self,
         scope: Stack,
         construct_id: str,
-        params: SchedulerStackParams,
+        params=WordsGeneratorSchedulerParams,
         **kwargs,
     ) -> None:
-        """Construct a new StorageStack."""
-        super().__init__(scope, construct_id, **kwargs)
+        """Construct a new WordsGeneratorSchedule."""
+        super().__init__(scope=scope, id=construct_id, **kwargs)
 
         # NL words generator state machine
         scheduler_role = iam.Role(
             self,
-            "WordGenerateSchedulerRole",
+            "WordsGenerateSchedulerRole",
             assumed_by=iam.ServicePrincipal("scheduler.amazonaws.com"),
             inline_policies={
                 "StepFunctionExecutionPolicy": iam.PolicyDocument(
@@ -52,8 +52,8 @@ class SchedulerStack(NestedStack):
 
         self.scheduler_nl = scheduler.CfnSchedule(
             self,
-            "SchedulerNL",
-            schedule_expression="cron(*/5 * * * ? *)",
+            "WordsGeneratorSchedulerNL",
+            schedule_expression="cron(*/2 * * * ? *)",
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=params.state_machine.state_machine_arn,
                 role_arn=scheduler_role.role_arn,
@@ -66,15 +66,15 @@ class SchedulerStack(NestedStack):
             ),
             flexible_time_window=scheduler.CfnSchedule.FlexibleTimeWindowProperty(
                 mode="FLEXIBLE",
-                maximum_window_in_minutes=3,
+                maximum_window_in_minutes=1,
             ),
-            state="DISABLED",
+            state="ENABLED",
         )
 
         self.scheduler_en = scheduler.CfnSchedule(
             self,
-            "SchedulerEN",
-            schedule_expression="cron(*/5 * * * ? *)",
+            "WordsGeneratorSchedulerEN",
+            schedule_expression="cron(*/2 * * * ? *)",
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=params.state_machine.state_machine_arn,
                 role_arn=scheduler_role.role_arn,
@@ -87,7 +87,7 @@ class SchedulerStack(NestedStack):
             ),
             flexible_time_window=scheduler.CfnSchedule.FlexibleTimeWindowProperty(
                 mode="FLEXIBLE",
-                maximum_window_in_minutes=2,
+                maximum_window_in_minutes=1,
             ),
-            state="DISABLED",
+            state="ENABLED",
         )

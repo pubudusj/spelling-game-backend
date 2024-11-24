@@ -1,1 +1,0 @@
-"""The generate words package."""

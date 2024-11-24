@@ -1,24 +1,23 @@
-"""Storage stack to manage storage related resources."""
+"""Construct for WordsGeneratorStorage."""
 
 from aws_cdk import (
     Stack,
-    NestedStack,
-    aws_s3 as s3,
     aws_dynamodb as dynamodb,
+    aws_s3 as s3,
 )
+from constructs import Construct
 
 
-class StorageStack(NestedStack):
-    """The Storage nested stack."""
+class WordsGeneratorStorage(Construct):
+    """Storage for Words."""
 
-    def __init__(
-        self,
-        scope: Stack,
-        construct_id: str,
-        **kwargs,
-    ) -> None:
-        """Construct a new StorageStack."""
-        super().__init__(scope, construct_id, **kwargs)
+    def __init__(self, scope: Stack, construct_id: str, **kwargs) -> None:
+        """Construct a new WordsGeneratorStorage."""
+        super().__init__(
+            scope=scope,
+            id=construct_id,
+            **kwargs,
+        )
 
         # s3 bucket to store the word mp3 files
         self.words_storage_s3_bucket = s3.Bucket(
