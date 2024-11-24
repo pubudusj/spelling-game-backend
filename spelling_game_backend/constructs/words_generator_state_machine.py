@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from aws_cdk import (
     Duration,
     Stack,
-    NestedStack,
     aws_s3 as s3,
     aws_sns as sns,
     aws_stepfunctions as sfn,
@@ -74,9 +73,9 @@ class WordsGeneratorStateMachine(Construct):
             },
         )
 
-        map = sfn.Map(
+        langages_map = sfn.Map(
             self,
-            "Map",
+            "LanguagesMap",
             items_path="$.words",
             item_selector={
                 "language": sfn.JsonPath.string_at("$$.Execution.Input.language"),
@@ -208,7 +207,7 @@ class WordsGeneratorStateMachine(Construct):
             .otherwise(speech_synthesis_task_en)
         )
 
-        map.item_processor(language_choice)
+        langages_map.item_processor(language_choice)
 
         self.word_generator_state_machine = sfn.StateMachine(
             self,
@@ -220,7 +219,7 @@ class WordsGeneratorStateMachine(Construct):
                     "Start statemachine",
                 )
                 .next(call_bedrock_task)
-                .next(map)
+                .next(langages_map)
             ),
         )
 

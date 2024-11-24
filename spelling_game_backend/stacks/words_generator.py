@@ -1,14 +1,10 @@
 """Words generator nested stack."""
 
-import json
-
-from dataclasses import dataclass
 from aws_cdk import (
     Stack,
     NestedStack,
     aws_sns as sns,
 )
-from constructs import Construct
 
 from spelling_game_backend.constructs.words_generator_storage import (
     WordsGeneratorStorage,

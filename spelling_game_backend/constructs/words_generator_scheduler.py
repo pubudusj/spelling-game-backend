@@ -53,7 +53,7 @@ class WordsGeneratorScheduler(Construct):
         self.scheduler_nl = scheduler.CfnSchedule(
             self,
             "WordsGeneratorSchedulerNL",
-            schedule_expression="cron(*/2 * * * ? *)",
+            schedule_expression="cron(*/15 * * * ? *)",
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=params.state_machine.state_machine_arn,
                 role_arn=scheduler_role.role_arn,
@@ -66,7 +66,7 @@ class WordsGeneratorScheduler(Construct):
             ),
             flexible_time_window=scheduler.CfnSchedule.FlexibleTimeWindowProperty(
                 mode="FLEXIBLE",
-                maximum_window_in_minutes=1,
+                maximum_window_in_minutes=5,
             ),
             state="ENABLED",
         )
@@ -74,7 +74,7 @@ class WordsGeneratorScheduler(Construct):
         self.scheduler_en = scheduler.CfnSchedule(
             self,
             "WordsGeneratorSchedulerEN",
-            schedule_expression="cron(*/2 * * * ? *)",
+            schedule_expression="cron(*/15 * * * ? *)",
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=params.state_machine.state_machine_arn,
                 role_arn=scheduler_role.role_arn,
@@ -87,7 +87,7 @@ class WordsGeneratorScheduler(Construct):
             ),
             flexible_time_window=scheduler.CfnSchedule.FlexibleTimeWindowProperty(
                 mode="FLEXIBLE",
-                maximum_window_in_minutes=1,
+                maximum_window_in_minutes=5,
             ),
             state="ENABLED",
         )
