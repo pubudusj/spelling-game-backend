@@ -10,6 +10,7 @@ from aws_cdk import (
     aws_stepfunctions as sfn,
 )
 from constructs import Construct
+from config import BaseConfig
 
 
 @dataclass
@@ -32,6 +33,11 @@ class WordsGeneratorScheduler(Construct):
         """Construct a new WordsGeneratorSchedule."""
         super().__init__(scope=scope, id=construct_id, **kwargs)
 
+        config = BaseConfig()
+
+        interval = config.words_generation_interval
+        max_window = int(interval / 2)
+
         # NL words generator state machine
         scheduler_role = iam.Role(
             self,
@@ -53,7 +59,7 @@ class WordsGeneratorScheduler(Construct):
         self.scheduler_nl = scheduler.CfnSchedule(
             self,
             "WordsGeneratorSchedulerNL",
-            schedule_expression="cron(*/15 * * * ? *)",
+            schedule_expression=f"cron(*/{interval} * * * ? *)",
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=params.state_machine.state_machine_arn,
                 role_arn=scheduler_role.role_arn,
@@ -66,7 +72,7 @@ class WordsGeneratorScheduler(Construct):
             ),
             flexible_time_window=scheduler.CfnSchedule.FlexibleTimeWindowProperty(
                 mode="FLEXIBLE",
-                maximum_window_in_minutes=5,
+                maximum_window_in_minutes=max_window,
             ),
             state="ENABLED",
         )
@@ -74,7 +80,7 @@ class WordsGeneratorScheduler(Construct):
         self.scheduler_en = scheduler.CfnSchedule(
             self,
             "WordsGeneratorSchedulerEN",
-            schedule_expression="cron(*/15 * * * ? *)",
+            schedule_expression=f"cron(*/{interval} * * * ? *)",
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=params.state_machine.state_machine_arn,
                 role_arn=scheduler_role.role_arn,
@@ -87,7 +93,7 @@ class WordsGeneratorScheduler(Construct):
             ),
             flexible_time_window=scheduler.CfnSchedule.FlexibleTimeWindowProperty(
                 mode="FLEXIBLE",
-                maximum_window_in_minutes=5,
+                maximum_window_in_minutes=max_window,
             ),
             state="ENABLED",
         )

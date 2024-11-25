@@ -117,6 +117,9 @@ class WordsGeneratorStateMachine(Construct):
                         ),
                     )
                 ),
+                "updated_at": tasks.DynamoAttributeValue.from_string(
+                    sfn.JsonPath.string_at("$$.State.EnteredTime")
+                ),
             },
         )
 
