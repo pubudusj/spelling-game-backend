@@ -11,6 +11,7 @@ from aws_cdk import (
     aws_bedrock as bedrock,
     aws_iam as iam,
     aws_dynamodb as ddb,
+    aws_lambda as _lambda,
 )
 from constructs import Construct
 
@@ -22,6 +23,8 @@ class WordsBackendStateMachineParams:
     s3_bucket: s3.Bucket
     dynamodb_table: ddb.Table
     sns_topic: sns.Topic
+    presigned_url_lambda: _lambda.Function
+    get_unique_results_lambda: _lambda.Function
 
 
 class WordsBackendStateMachine(Construct):
@@ -75,6 +78,37 @@ class WordsBackendStateMachine(Construct):
             iam_resources=[params.dynamodb_table.table_arn],
         )
 
+        generate_presigned_url_function = tasks.LambdaInvoke(
+            self,
+            "GeneratePresignedURLLambda",
+            lambda_function=params.presigned_url_lambda,
+            payload=sfn.TaskInput.from_json_path_at("$"),
+            result_selector={
+                "url": sfn.JsonPath.string_at("$.Payload.url"),
+            },
+            result_path="$.result",
+        ).next(
+            sfn.Pass(
+                self,
+                "TrnasformOutput",
+                parameters={
+                    "id": sfn.JsonPath.string_at("$.sk.S"),
+                    "description": sfn.JsonPath.string_at("$.description.S"),
+                    "charcount": sfn.JsonPath.number_at("$.charcount.N"),
+                    "url": sfn.JsonPath.string_at("$.result.url"),
+                    "language": sfn.JsonPath.string_at("$$.Execution.Input.language"),
+                },
+            )
+        )
+
+        get_uniq_results_lambda = tasks.LambdaInvoke(
+            self,
+            "GetUniqueResultsLambda",
+            lambda_function=params.get_unique_results_lambda,
+            payload=sfn.TaskInput.from_json_path_at("$"),
+            output_path="$.Payload",
+        )
+
         check_item_count = (
             sfn.Choice(
                 self,
@@ -83,7 +117,7 @@ class WordsBackendStateMachine(Construct):
             )
             .when(
                 sfn.Condition.number_greater_than("$.itemcount", 0),
-                sfn.Pass(self, "GeneratePresignedURL"),
+                generate_presigned_url_function,
             )
             .otherwise(
                 sfn.Pass(
@@ -93,11 +127,16 @@ class WordsBackendStateMachine(Construct):
             )
         )
 
-        return sfn.DefinitionBody.from_chainable(
-            sfn.Pass(
+        ddb_scan.next(check_item_count)
+
+        fetch_questions_map = (
+            sfn.Map(
                 self,
-                "Start statemachine",
+                "FetchQuestionsMap",
+                items_path="$.iterate",
             )
-            .next(ddb_scan)
-            .next(check_item_count)
+            .item_processor(ddb_scan)
+            .next(get_uniq_results_lambda)
         )
+
+        return sfn.DefinitionBody.from_chainable(fetch_questions_map)

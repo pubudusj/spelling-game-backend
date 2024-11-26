@@ -14,6 +14,11 @@ from spelling_game_backend.constructs.words_backend_state_machine import (
     WordsBackendStateMachineParams,
 )
 
+from spelling_game_backend.constructs.words_backend_lambdas import (
+    WordsBackendLambdaFunctions,
+    WordsBackendLambdaFunctionsParams,
+)
+
 
 @dataclass
 class WordsBackendStackParams:
@@ -39,6 +44,14 @@ class WordsBackendStack(NestedStack):
             topic_name="WordsBackendNotificationSNS",
         )
 
+        self.words_backend_lambda_functions = WordsBackendLambdaFunctions(
+            self,
+            "WordsBackendLambdaFunctions",
+            params=WordsBackendLambdaFunctionsParams(
+                s3_bucket=params.s3_bucket,
+            ),
+        )
+
         self.words_backend_state_machine = WordsBackendStateMachine(
             self,
             "WordsBackendStateMachine",
@@ -46,5 +59,7 @@ class WordsBackendStack(NestedStack):
                 s3_bucket=params.s3_bucket,
                 dynamodb_table=params.dynamodb_table,
                 sns_topic=self.notification_sns_topic,
+                presigned_url_lambda=self.words_backend_lambda_functions.presigned_url_lambda,
+                get_unique_results_lambda=self.words_backend_lambda_functions.get_unique_results_lambda,
             ),
         )
