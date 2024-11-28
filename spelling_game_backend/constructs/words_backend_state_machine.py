@@ -8,8 +8,7 @@ from aws_cdk import (
     aws_sns as sns,
     aws_stepfunctions as sfn,
     aws_stepfunctions_tasks as tasks,
-    aws_bedrock as bedrock,
-    aws_iam as iam,
+    aws_logs as logs,
     aws_dynamodb as ddb,
     aws_lambda as _lambda,
 )
@@ -40,13 +39,21 @@ class WordsBackendStateMachine(Construct):
         """Construct a new WordsBackendStateMachine."""
         super().__init__(scope=scope, id=construct_id, **kwargs)
 
+        words_backend_state_machine_log_group = logs.LogGroup(
+            self, "WordsBackendStateMachineLogGroup"
+        )
+
         # Define the state machine
-        sfn.StateMachine(
+        self.words_backend_state_machine = sfn.StateMachine(
             self,
             "WordsBackendStateMachine",
-            state_machine_type=sfn.StateMachineType.STANDARD,
+            state_machine_type=sfn.StateMachineType.EXPRESS,
             definition_body=self._create_state_machine_definition(params),
-            timeout=Duration.minutes(5),
+            timeout=Duration.minutes(1),
+            logs=sfn.LogOptions(
+                destination=words_backend_state_machine_log_group,
+                level=sfn.LogLevel.ALL,
+            ),
         )
 
     def _create_state_machine_definition(self, params: WordsBackendStateMachineParams):
@@ -109,6 +116,17 @@ class WordsBackendStateMachine(Construct):
             output_path="$.Payload",
         )
 
+        sns_notification = tasks.SnsPublish(
+            self,
+            "FailedNotificationToSNS",
+            topic=params.sns_topic,
+            message=sfn.TaskInput.from_object(
+                {
+                    "output": sfn.JsonPath.object_at("$"),
+                }
+            ),
+        )
+
         check_item_count = (
             sfn.Choice(
                 self,
@@ -119,12 +137,7 @@ class WordsBackendStateMachine(Construct):
                 sfn.Condition.number_greater_than("$.itemcount", 0),
                 generate_presigned_url_function,
             )
-            .otherwise(
-                sfn.Pass(
-                    self,
-                    "DDBScanFailed",
-                )
-            )
+            .otherwise(sns_notification)
         )
 
         ddb_scan.next(check_item_count)

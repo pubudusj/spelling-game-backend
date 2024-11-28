@@ -13,10 +13,13 @@ from spelling_game_backend.constructs.words_backend_state_machine import (
     WordsBackendStateMachine,
     WordsBackendStateMachineParams,
 )
-
 from spelling_game_backend.constructs.words_backend_lambdas import (
     WordsBackendLambdaFunctions,
     WordsBackendLambdaFunctionsParams,
+)
+from spelling_game_backend.constructs.words_backend_api import (
+    WordsBackendApi,
+    WordsBackendApiParams,
 )
 
 
@@ -61,5 +64,13 @@ class WordsBackendStack(NestedStack):
                 sns_topic=self.notification_sns_topic,
                 presigned_url_lambda=self.words_backend_lambda_functions.presigned_url_lambda,
                 get_unique_results_lambda=self.words_backend_lambda_functions.get_unique_results_lambda,
+            ),
+        )
+
+        self.words_backend_api = WordsBackendApi(
+            self,
+            "WordsBackendApi",
+            params=WordsBackendApiParams(
+                state_machine=self.words_backend_state_machine.words_backend_state_machine,
             ),
         )
