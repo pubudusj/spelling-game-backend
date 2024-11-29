@@ -6,6 +6,7 @@ from aws_cdk import (
     Stack,
     aws_s3 as s3,
     aws_lambda as _lambda,
+    aws_iam as iam,
 )
 from constructs import Construct
 
@@ -40,6 +41,14 @@ class WordsBackendLambdaFunctions(Construct):
             ),
             environment={"BUCKET_NAME": params.s3_bucket.bucket_name},
             timeout=Duration.seconds(3),
+        )
+
+        self.presigned_url_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["s3:GetObject"],
+                resources=[params.s3_bucket.bucket_arn + "/*"],
+            )
         )
 
         self.get_unique_results_lambda = _lambda.Function(

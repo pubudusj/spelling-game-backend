@@ -64,14 +64,15 @@ class WordsBackendApi(Construct):
             request_parameters={
                 "integration.request.header.Content-Type": "'application/x-www-form-urlencoded'"
             },
-            passthrough_behavior=apigateway.PassthroughBehavior.WHEN_NO_TEMPLATES,
+            passthrough_behavior=apigateway.PassthroughBehavior.NEVER,
             request_templates={
-                "application/json": json.dumps(
-                    {
-                        "stateMachineArn": f"{params.state_machine.state_machine_arn}",
-                        "input": '{"language":"en-US","iterate":[1,2,3,4,5]}',
-                    }
-                )
+                "application/json": f"""
+                    #set($language = $input.json('$.language'))
+                    {{
+                        "stateMachineArn": "{params.state_machine.state_machine_arn}",
+                        "input": "{{\\"language\\":$util.escapeJavaScript($language),\\"iterate\\":[1,2,3,4,5]}}"
+                    }}
+                """
             },
             integration_responses=[
                 apigateway.IntegrationResponse(
@@ -82,8 +83,37 @@ class WordsBackendApi(Construct):
                 )
             ],
         )
-        # add method to /words api
-        apigw_method = self.words_backend_api.root.add_resource("words").add_method(
+
+        # Request model for /questions api
+        request_model = self.words_backend_api.add_model(
+            "QuestionsRequestModel",
+            content_type="application/json",
+            model_name="QuestionsRequestModel",
+            schema=apigateway.JsonSchema(
+                schema=apigateway.JsonSchemaVersion.DRAFT4,
+                title="GetQuestionsRequest",
+                type=apigateway.JsonSchemaType.OBJECT,
+                properties={
+                    "language": apigateway.JsonSchema(
+                        type=apigateway.JsonSchemaType.STRING,
+                        description="Language of the questions",
+                        enum=["en-US", "nl-NL"],
+                    ),
+                },
+                required=["language"],
+            ),
+        )
+
+        # Request validator with body validation
+        request_validator = apigateway.RequestValidator(
+            self,
+            "QuestionsRequestValidator",
+            rest_api=self.words_backend_api,
+            validate_request_body=True,
+        )
+
+        # add method to /questions api
+        apigw_method = self.words_backend_api.root.add_resource("questions").add_method(
             "POST",
             apigateway.AwsIntegration(
                 service="states",
@@ -91,5 +121,7 @@ class WordsBackendApi(Construct):
                 integration_http_method="POST",
                 options=integration_options,
             ),
+            request_models={"application/json": request_model},
             method_responses=[apigateway.MethodResponse(status_code="200")],
+            request_validator=request_validator,
         )
