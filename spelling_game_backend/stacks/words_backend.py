@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from aws_cdk import (
+    CfnOutput,
     Stack,
     NestedStack,
     aws_sns as sns,
@@ -73,4 +74,11 @@ class WordsBackendStack(NestedStack):
             params=WordsBackendApiParams(
                 state_machine=self.words_backend_state_machine.words_backend_state_machine,
             ),
+        )
+
+        CfnOutput(
+            self,
+            "WordsBackendApiUrl",
+            value=self.words_backend_api.words_backend_api.url,
+            description="Words Backend API URL",
         )

@@ -3,7 +3,6 @@
 import json
 from dataclasses import dataclass
 from aws_cdk import (
-    Duration,
     Stack,
     aws_s3 as s3,
     aws_lambda as _lambda,
@@ -42,6 +41,11 @@ class WordsBackendApi(Construct):
             description="Words Backend API",
         )
 
+        self._build_questions_api(params)
+
+    def _build_questions_api(self, params: WordsBackendApiParams):
+        """Build the /questions api."""
+
         apigw_role = iam.Role(
             self,
             "WordsApiExecutionRole",
@@ -67,12 +71,12 @@ class WordsBackendApi(Construct):
             passthrough_behavior=apigateway.PassthroughBehavior.NEVER,
             request_templates={
                 "application/json": f"""
-                    #set($language = $input.json('$.language'))
-                    {{
-                        "stateMachineArn": "{params.state_machine.state_machine_arn}",
-                        "input": "{{\\"language\\":$util.escapeJavaScript($language),\\"iterate\\":[1,2,3,4,5]}}"
-                    }}
-                """
+                        #set($language = $input.json('$.language'))
+                        {{
+                            "stateMachineArn": "{params.state_machine.state_machine_arn}",
+                            "input": "{{\\"language\\":$util.escapeJavaScript($language),\\"iterate\\":[1,2,3,4,5]}}"
+                        }}
+                    """
             },
             integration_responses=[
                 apigateway.IntegrationResponse(
@@ -113,7 +117,7 @@ class WordsBackendApi(Construct):
         )
 
         # add method to /questions api
-        apigw_method = self.words_backend_api.root.add_resource("questions").add_method(
+        self.words_backend_api.root.add_resource("questions").add_method(
             "POST",
             apigateway.AwsIntegration(
                 service="states",
