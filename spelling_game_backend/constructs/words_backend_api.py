@@ -18,6 +18,7 @@ class WordsBackendApiParams:
     """Parameters for the WordsBackendApi."""
 
     state_machine: sfn.StateMachine
+    validate_answers_lambda: _lambda.Function
 
 
 class WordsBackendApi(Construct):
@@ -43,14 +44,16 @@ class WordsBackendApi(Construct):
 
         self._build_questions_api(params)
 
+        self._validate_answers_api(params)
+
     def _build_questions_api(self, params: WordsBackendApiParams):
         """Build the /questions api."""
 
-        apigw_role = iam.Role(
+        apigw_sf_execution_role = iam.Role(
             self,
-            "WordsApiExecutionRole",
+            "WordsApiSFExecutionRole",
             assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
-            description="Role for words api.",
+            description="Role for words api SF execution.",
             inline_policies={
                 "StepFunctionExecutionPermissions": iam.PolicyDocument(
                     statements=[
@@ -64,7 +67,7 @@ class WordsBackendApi(Construct):
         )
 
         integration_options = apigateway.IntegrationOptions(
-            credentials_role=apigw_role,
+            credentials_role=apigw_sf_execution_role,
             request_parameters={
                 "integration.request.header.Content-Type": "'application/x-www-form-urlencoded'"
             },
@@ -124,6 +127,86 @@ class WordsBackendApi(Construct):
                 action="StartSyncExecution",
                 integration_http_method="POST",
                 options=integration_options,
+            ),
+            request_models={"application/json": request_model},
+            method_responses=[apigateway.MethodResponse(status_code="200")],
+            request_validator=request_validator,
+        )
+
+    def _validate_answers_api(self, params: WordsBackendApiParams):
+        """Build the /answers api."""
+
+        apigw_lambda_execution_role = iam.Role(
+            self,
+            "WordsApiLambdaExecutionRole",
+            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            description="Role for words api Lambda execution.",
+            inline_policies={
+                "LambdaExecutionPermissions": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            actions=["lambda:InvokeFunction"],
+                            resources=[params.validate_answers_lambda.function_arn],
+                        ),
+                    ]
+                ),
+            },
+        )
+
+        # Request model for /answers api
+        request_model = self.words_backend_api.add_model(
+            "CheckAnswersRequestModel",
+            content_type="application/json",
+            model_name="CheckAnswersRequestModel",
+            schema=apigateway.JsonSchema(
+                schema=apigateway.JsonSchemaVersion.DRAFT4,
+                title="CheckAnswersRequestSchema",
+                type=apigateway.JsonSchemaType.OBJECT,
+                properties={
+                    "language": apigateway.JsonSchema(
+                        type=apigateway.JsonSchemaType.STRING,
+                        description="Language of the request, either en-US or nl-NL",
+                        enum=["en-US", "nl-NL"],
+                    ),
+                    "answers": apigateway.JsonSchema(
+                        type=apigateway.JsonSchemaType.ARRAY,
+                        items=apigateway.JsonSchema(
+                            type=apigateway.JsonSchemaType.OBJECT,
+                            properties={
+                                "id": apigateway.JsonSchema(
+                                    type=apigateway.JsonSchemaType.STRING,
+                                    description="Unique identifier in UUID format",
+                                    pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                ),
+                                "word": apigateway.JsonSchema(
+                                    type=apigateway.JsonSchemaType.STRING,
+                                    description="Word to validate as answer",
+                                    min_length=1,
+                                    max_length=20,
+                                ),
+                            },
+                            required=["id", "word"],
+                        ),
+                    ),
+                },
+                required=["language", "answers"],
+            ),
+        )
+
+        request_validator = apigateway.RequestValidator(
+            self,
+            "CheckAnswersRequestValidator",
+            rest_api=self.words_backend_api,
+            validate_request_body=True,
+        )
+
+        # add method to /answers api
+        self.words_backend_api.root.add_resource("answers").add_method(
+            "POST",
+            apigateway.LambdaIntegration(
+                params.validate_answers_lambda,
+                proxy=True,
+                credentials_role=apigw_lambda_execution_role,
             ),
             request_models={"application/json": request_model},
             method_responses=[apigateway.MethodResponse(status_code="200")],

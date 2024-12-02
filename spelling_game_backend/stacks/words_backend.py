@@ -53,6 +53,7 @@ class WordsBackendStack(NestedStack):
             "WordsBackendLambdaFunctions",
             params=WordsBackendLambdaFunctionsParams(
                 s3_bucket=params.s3_bucket,
+                dynamodb_table=params.dynamodb_table,
             ),
         )
 
@@ -73,6 +74,7 @@ class WordsBackendStack(NestedStack):
             "WordsBackendApi",
             params=WordsBackendApiParams(
                 state_machine=self.words_backend_state_machine.words_backend_state_machine,
+                validate_answers_lambda=self.words_backend_lambda_functions.validate_answers_lambda,
             ),
         )
 

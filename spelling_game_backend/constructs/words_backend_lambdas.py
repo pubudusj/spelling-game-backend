@@ -7,6 +7,7 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_lambda as _lambda,
     aws_iam as iam,
+    aws_dynamodb as ddb,
 )
 from constructs import Construct
 
@@ -16,6 +17,7 @@ class WordsBackendLambdaFunctionsParams:
     """Parameters for the WordsBackendLambdaFunctions."""
 
     s3_bucket: s3.Bucket
+    dynamodb_table: ddb.Table
 
 
 class WordsBackendLambdaFunctions(Construct):
@@ -60,4 +62,26 @@ class WordsBackendLambdaFunctions(Construct):
                 "spelling_game_backend/lambda/get_unique_results"
             ),
             timeout=Duration.seconds(2),
+        )
+
+        self.validate_answers_lambda = _lambda.Function(
+            self,
+            "ValidateAnswers",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            handler="index.lambda_handler",
+            code=_lambda.Code.from_asset(
+                "spelling_game_backend/lambda/validate_answers"
+            ),
+            timeout=Duration.seconds(2),
+            environment={
+                "DDB_TABLE_NAME": params.dynamodb_table.table_name,
+            },
+        )
+
+        self.validate_answers_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["dynamodb:BatchGetItem"],
+                resources=[params.dynamodb_table.table_arn],
+            )
         )
