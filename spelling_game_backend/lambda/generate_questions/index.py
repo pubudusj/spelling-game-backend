@@ -19,5 +19,10 @@ def lambda_handler(event, context):
 
     return {
         "statusCode": 200,
-        "body": json.dumps(json.loads(response["output"])),
+        "body": json.dumps({"questions": json.loads(response["output"])}),
+        "headers": {
+            "Access-Control-Allow-Origin": "*",  # update with the domain input
+            "Access-Control-Allow-Methods": "OPTIONS, POST",
+            "Access-Control-Allow-Headers": "Content-Type",
+        },
     }
