@@ -22,6 +22,10 @@ from spelling_game_backend.constructs.words_backend_api import (
     WordsBackendApi,
     WordsBackendApiParams,
 )
+from spelling_game_backend.constructs.backend_api_lambdas import (
+    BackendApiLambdaFunctions,
+    BackendApiLambdaFunctionsParams,
+)
 
 
 @dataclass
@@ -69,12 +73,22 @@ class WordsBackendStack(NestedStack):
             ),
         )
 
+        self.backend_api_lambda_functions = BackendApiLambdaFunctions(
+            self,
+            "BackendApiLambdaFunctions",
+            params=BackendApiLambdaFunctionsParams(
+                dynamodb_table=params.dynamodb_table,
+                state_machine=self.words_backend_state_machine.words_backend_state_machine,
+            ),
+        )
+
         self.words_backend_api = WordsBackendApi(
             self,
             "WordsBackendApi",
             params=WordsBackendApiParams(
                 state_machine=self.words_backend_state_machine.words_backend_state_machine,
-                validate_answers_lambda=self.words_backend_lambda_functions.validate_answers_lambda,
+                generate_questions_lambda=self.backend_api_lambda_functions.generate_questions_lambda,
+                validate_answers_lambda=self.backend_api_lambda_functions.validate_answers_lambda,
             ),
         )
 

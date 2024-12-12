@@ -21,7 +21,7 @@ class WordsBackendLambdaFunctionsParams:
 
 
 class WordsBackendLambdaFunctions(Construct):
-    """State machine for words backend."""
+    """Lambda functions for words backend."""
 
     def __init__(
         self,
@@ -30,7 +30,7 @@ class WordsBackendLambdaFunctions(Construct):
         params=WordsBackendLambdaFunctionsParams,
         **kwargs,
     ) -> None:
-        """Construct a new WordsBackendStateMachine."""
+        """Construct a new WordsBackendLambdaFunctions."""
         super().__init__(scope=scope, id=construct_id, **kwargs)
 
         self.presigned_url_lambda = _lambda.Function(
@@ -62,26 +62,4 @@ class WordsBackendLambdaFunctions(Construct):
                 "spelling_game_backend/lambda/get_unique_results"
             ),
             timeout=Duration.seconds(2),
-        )
-
-        self.validate_answers_lambda = _lambda.Function(
-            self,
-            "ValidateAnswers",
-            runtime=_lambda.Runtime.PYTHON_3_12,
-            handler="index.lambda_handler",
-            code=_lambda.Code.from_asset(
-                "spelling_game_backend/lambda/validate_answers"
-            ),
-            timeout=Duration.seconds(2),
-            environment={
-                "DDB_TABLE_NAME": params.dynamodb_table.table_name,
-            },
-        )
-
-        self.validate_answers_lambda.add_to_role_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=["dynamodb:BatchGetItem"],
-                resources=[params.dynamodb_table.table_arn],
-            )
         )
