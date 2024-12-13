@@ -97,7 +97,7 @@ class WordsBackendStateMachine(Construct):
         ).next(
             sfn.Pass(
                 self,
-                "TrnasformOutput",
+                "TransformOutput",
                 parameters={
                     "id": sfn.JsonPath.string_at("$.sk.S"),
                     "description": sfn.JsonPath.string_at("$.description.S"),
