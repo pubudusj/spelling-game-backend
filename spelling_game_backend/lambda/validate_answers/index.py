@@ -45,7 +45,14 @@ def lambda_handler(event, context):
         for item in payload["answers"]
     ]
 
+    output_headers = {
+        "Access-Control-Allow-Origin": "*",  # TODO: update with the domain input
+        "Access-Control-Allow-Methods": "OPTIONS, POST",
+        "Access-Control-Allow-Headers": "Content-Type",
+    }
+
     return {
         "statusCode": 200,
         "body": json.dumps(results),
+        "headers": output_headers,
     }
