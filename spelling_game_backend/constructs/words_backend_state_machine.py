@@ -88,6 +88,15 @@ class WordsBackendStateMachine(Construct):
                     },
                     "sk": {"S": sfn.JsonPath.string_at("States.UUID()")},
                 },
+                "FilterExpression": "pk = :pk",
+                "ExpressionAttributeValues": {
+                    ":pk": {
+                        "S": sfn.JsonPath.format(
+                            "Word#{}",
+                            sfn.JsonPath.string_at("$$.Execution.Input.language"),
+                        )
+                    }
+                },
                 "ReturnConsumedCapacity": "TOTAL",
             },
             result_selector={
