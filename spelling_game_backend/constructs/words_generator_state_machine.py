@@ -42,7 +42,7 @@ class WordsGeneratorStateMachine(Construct):
             "BedrockModelAnthropicClaude35Haiku",
             bedrock.FoundationModelIdentifier.ANTHROPIC_CLAUDE_3_HAIKU_20240307_V1_0,
         )
-        prompt = "Generate 5 unique words that has random number of characters more than 4 and less than 10 in {} language. For each word, provide a brief description of its meaning in English with more than a couple of words. Produce output only in minified JSON array with the keys word and description."
+        prompt = "Generate 5 unique words that has random number of characters more than 4 and less than 10 in {} language. For each word, provide a brief description of its meaning in English with more than a couple of words. Produce output only in minified JSON array with the keys word and description. Word always must be in lowercase."
         call_bedrock_task = tasks.BedrockInvokeModel(
             self,
             "GenerateWords",
@@ -89,6 +89,17 @@ class WordsGeneratorStateMachine(Construct):
             "SynthesisTaskStatusChoice",
         )
 
+        failed_sns_notification = tasks.SnsPublish(
+            self,
+            "FailedNotificationToSNS",
+            topic=params.sns_topic,
+            message=sfn.TaskInput.from_object(
+                {
+                    "output": sfn.JsonPath.object_at("$.output"),
+                }
+            ),
+        )
+
         save_word_to_dynamodb = tasks.DynamoPutItem(
             self,
             "SaveWordToDynamoDB",
@@ -121,7 +132,7 @@ class WordsGeneratorStateMachine(Construct):
                     sfn.JsonPath.string_at("$$.State.EnteredTime")
                 ),
             },
-        )
+        ).add_catch(failed_sns_notification)
 
         get_speech_synthesis_task = tasks.CallAwsService(
             self,
@@ -134,17 +145,6 @@ class WordsGeneratorStateMachine(Construct):
             iam_resources=["*"],
             result_path="$.output",
         ).next(synthesis_task_status_choice)
-
-        failed_sns_notification = tasks.SnsPublish(
-            self,
-            "FailedNotificationToSNS",
-            topic=params.sns_topic,
-            message=sfn.TaskInput.from_object(
-                {
-                    "output": sfn.JsonPath.object_at("$.output"),
-                }
-            ),
-        )
 
         synthesis_task_status_choice.when(
             sfn.Condition.string_equals(
