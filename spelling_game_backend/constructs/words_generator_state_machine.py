@@ -42,7 +42,7 @@ class WordsGeneratorStateMachine(Construct):
             "BedrockModelAnthropicClaude35Haiku",
             bedrock.FoundationModelIdentifier.ANTHROPIC_CLAUDE_3_HAIKU_20240307_V1_0,
         )
-        prompt = "Generate 5 unique words that has random number of characters more than 5 and less than 10 in {} language. For each word, provide a brief description of its meaning in English with more than a couple of words. Produce output only in minified JSON array with the keys word and description."
+        prompt = "Generate 5 unique words that has random number of characters more than 4 and less than 10 in {} language. For each word, provide a brief description of its meaning in English with more than a couple of words. Produce output only in minified JSON array with the keys word and description."
         call_bedrock_task = tasks.BedrockInvokeModel(
             self,
             "GenerateWords",
@@ -98,7 +98,7 @@ class WordsGeneratorStateMachine(Construct):
                     sfn.JsonPath.format("Word#{}", sfn.JsonPath.string_at("$.language"))
                 ),
                 "sk": tasks.DynamoAttributeValue.from_string(
-                    sfn.JsonPath.string_at("$.output.SynthesisTask.TaskId")
+                    sfn.JsonPath.string_at("States.Hash($.word, 'MD5')")
                 ),
                 "word": tasks.DynamoAttributeValue.from_string(
                     sfn.JsonPath.string_at("$.word")

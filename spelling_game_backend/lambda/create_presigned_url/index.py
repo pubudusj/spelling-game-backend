@@ -6,8 +6,18 @@ PRESIGNED_URL_EXPIRATION_SECONDS = 120
 bucket_name = os.environ["BUCKET_NAME"]
 
 
+def trasform_item(item):
+    return {
+        "id": item["sk"]["S"],
+        "description": item["description"]["S"],
+        "charcount": item["charcount"]["N"],
+        "language": item["pk"]["S"].split("#")[-1],
+        "word": item["word"]["S"],
+    }
+
+
 def lambda_handler(event, context):
-    s3_file_path = event["s3file"]["S"]
+    s3_file_path = event["item"]["s3file"]["S"]
     object_key = s3_file_path.split(f"{bucket_name}/")[-1]
     expiration = event.get("expiration", PRESIGNED_URL_EXPIRATION_SECONDS)
 
@@ -17,4 +27,7 @@ def lambda_handler(event, context):
         ExpiresIn=expiration,
     )
 
-    return {"url": presigned_url}
+    item = trasform_item(event["item"])
+    item["url"] = presigned_url
+
+    return item

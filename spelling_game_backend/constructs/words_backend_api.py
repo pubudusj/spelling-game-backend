@@ -153,8 +153,8 @@ class WordsBackendApi(Construct):
                             properties={
                                 "id": apigateway.JsonSchema(
                                     type=apigateway.JsonSchemaType.STRING,
-                                    description="Unique identifier in UUID format",
-                                    pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    description="Validate md5 hash",
+                                    pattern="^[0-9a-f]{32}$",
                                 ),
                                 "word": apigateway.JsonSchema(
                                     type=apigateway.JsonSchemaType.STRING,

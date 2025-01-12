@@ -1,16 +1,13 @@
-import json
-import random
-
-
 def lambda_handler(event, context):
     unique_results = []
-    seen_sks = set()
+    seen_words = set()
 
     for item in event:
-        if item is not None:
-            sk_value = item["id"]
-            if sk_value not in seen_sks:
+        if "word" in item:
+            word = item["word"].lower()
+            if word not in seen_words:
+                item.pop("word", None)
                 unique_results.append(item)
-                seen_sks.add(sk_value)
+                seen_words.add(word)
 
     return unique_results

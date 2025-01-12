@@ -59,14 +59,26 @@ class WordsBackendStateMachine(Construct):
     def _create_state_machine_definition(self, params: WordsBackendStateMachineParams):
         """Create the state machine definition."""
 
+        send_sns_notification = tasks.SnsPublish(
+            self,
+            "FailedNotificationToSNS",
+            topic=params.sns_topic,
+            message=sfn.TaskInput.from_object(
+                {
+                    "output": sfn.JsonPath.object_at("$"),
+                }
+            ),
+            result_selector={"error": True},
+        )
+
         ddb_scan = tasks.CallAwsService(
             self,
-            "DynamoDBGetSingleItem",
+            "DynamoDBGetRandomItems",
             service="dynamodb",
             action="scan",
             parameters={
                 "TableName": params.dynamodb_table.table_arn,
-                "Limit": 1,
+                "Limit": 50,
                 "ExclusiveStartKey": {
                     "pk": {
                         "S": sfn.JsonPath.format(
@@ -83,30 +95,39 @@ class WordsBackendStateMachine(Construct):
                 "items": sfn.JsonPath.string_at("$.Items"),
             },
             iam_resources=[params.dynamodb_table.table_arn],
-        )
+        ).add_catch(send_sns_notification)
 
-        generate_presigned_url_function = tasks.LambdaInvoke(
+        generate_presigned_url_function_and_trasnform = tasks.LambdaInvoke(
             self,
-            "GeneratePresignedURLLambda",
+            "GeneratePresignedURLLambdaAndTransform",
             lambda_function=params.presigned_url_lambda,
             payload=sfn.TaskInput.from_json_path_at("$"),
-            result_selector={
-                "url": sfn.JsonPath.string_at("$.Payload.url"),
-            },
-            result_path="$.result",
-        ).next(
-            sfn.Pass(
-                self,
-                "TransformOutput",
-                parameters={
-                    "id": sfn.JsonPath.string_at("$.sk.S"),
-                    "description": sfn.JsonPath.string_at("$.description.S"),
-                    "charcount": sfn.JsonPath.number_at("$.charcount.N"),
-                    "url": sfn.JsonPath.string_at("$.result.url"),
-                    "language": sfn.JsonPath.string_at("$$.Execution.Input.language"),
-                },
-            )
+            output_path="$.Payload",
         )
+
+        choose_random_item = sfn.Pass(
+            self,
+            "ChooseRandomItem",
+            parameters={
+                "item": sfn.JsonPath.object_at(
+                    "States.ArrayGetItem($.items,States.MathRandom(0, States.ArrayLength($.items)))"
+                ),
+            },
+        ).next(generate_presigned_url_function_and_trasnform)
+
+        check_item_count = (
+            sfn.Choice(
+                self,
+                "CheckItemCount",
+            )
+            .when(
+                sfn.Condition.number_greater_than("$.itemcount", 0),
+                choose_random_item,
+            )
+            .otherwise(send_sns_notification)
+        )
+
+        ddb_scan.next(check_item_count)
 
         get_uniq_results_lambda = tasks.LambdaInvoke(
             self,
@@ -115,32 +136,6 @@ class WordsBackendStateMachine(Construct):
             payload=sfn.TaskInput.from_json_path_at("$"),
             output_path="$.Payload",
         )
-
-        sns_notification = tasks.SnsPublish(
-            self,
-            "FailedNotificationToSNS",
-            topic=params.sns_topic,
-            message=sfn.TaskInput.from_object(
-                {
-                    "output": sfn.JsonPath.object_at("$"),
-                }
-            ),
-        )
-
-        check_item_count = (
-            sfn.Choice(
-                self,
-                "CheckItemCount",
-                output_path=sfn.JsonPath.string_at("$.items[0]"),
-            )
-            .when(
-                sfn.Condition.number_greater_than("$.itemcount", 0),
-                generate_presigned_url_function,
-            )
-            .otherwise(sns_notification)
-        )
-
-        ddb_scan.next(check_item_count)
 
         fetch_questions_map = (
             sfn.Map(

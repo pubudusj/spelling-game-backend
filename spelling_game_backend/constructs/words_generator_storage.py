@@ -37,5 +37,7 @@ class WordsGeneratorStorage(Construct):
                 name="sk",
                 type=dynamodb.AttributeType.STRING,
             ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            billing_mode=dynamodb.BillingMode.PROVISIONED,
+            read_capacity=5,
+            write_capacity=2,
         )
