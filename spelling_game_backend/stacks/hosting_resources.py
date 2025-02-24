@@ -82,3 +82,20 @@ class HostingResourcesStack(NestedStack):
                 "CUSTOM_HEADER_KEY": apigw_custom_header_key,
             },
         )
+
+        update_secure_header.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["ssm:GetParameter", "ssm:PutParameter"],
+                resources=[params.ssm_parameter.parameter_arn],
+            )
+        )
+
+        update_secure_header.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "cloudfront:GetDistributionConfig",
+                    "cloudfront:UpdateDistribution",
+                ],
+                resources=[self.cloudfront_distribution.distribution_arn],
+            )
+        )
