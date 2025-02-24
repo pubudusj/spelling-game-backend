@@ -8,8 +8,10 @@ from aws_cdk import (
     aws_iam as iam,
     aws_dynamodb as ddb,
     aws_stepfunctions as sfn,
+    aws_ssm as ssm,
 )
 from constructs import Construct
+from config import BaseConfig
 
 
 @dataclass
@@ -32,6 +34,17 @@ class BackendApiLambdaFunctions(Construct):
     ) -> None:
         """Construct a new BackendApiLambdaFunctions."""
         super().__init__(scope=scope, id=construct_id, **kwargs)
+
+        config = BaseConfig()
+
+        # Import ssm parameter
+        self.apigw_custom_header_parameter = (
+            ssm.StringParameter.from_secure_string_parameter_attributes(
+                self,
+                "APIGWCustomHeaderSecureParameter",
+                parameter_name=config.apigw_custom_header_parameter_name,
+            )
+        )
 
         # Create generate questions Lambda function
         self.generate_questions_lambda = _lambda.Function(
@@ -76,5 +89,28 @@ class BackendApiLambdaFunctions(Construct):
                 effect=iam.Effect.ALLOW,
                 actions=["dynamodb:BatchGetItem"],
                 resources=[params.dynamodb_table.table_arn],
+            )
+        )
+
+        # Custom authorizer lambda function
+        self.custom_authorizer = _lambda.Function(
+            self,
+            "BackendLambdaFunction",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            handler="index.lambda_handler",
+            code=_lambda.Code.from_asset(
+                "spelling_game_backend/lambda/custom_authorizer"
+            ),
+            timeout=Duration.seconds(2),
+            environment={
+                "SSM_PARAMETER_NAME": self.apigw_custom_header_parameter.parameter_name,
+                "CUSTOM_HEADER_KEY": config.apigw_custom_header_name,
+            },
+        )
+
+        self.custom_authorizer.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["ssm:GetParameter"],
+                resources=[self.apigw_custom_header_parameter.parameter_arn],
             )
         )

@@ -10,6 +10,10 @@ from spelling_game_backend.stacks.words_backend import (
     WordsBackendStack,
     WordsBackendStackParams,
 )
+from spelling_game_backend.stacks.hosting_resources import (
+    HostingResourcesStack,
+    HostingResourcesStackParams,
+)
 
 
 class SpellingGameBackendStack(Stack):
@@ -26,5 +30,14 @@ class SpellingGameBackendStack(Stack):
             params=WordsBackendStackParams(
                 s3_bucket=self.words_generator_stack.words_generator_storage.words_storage_s3_bucket,
                 dynamodb_table=self.words_generator_stack.words_generator_storage.words_storage_dynamodb_table,
+            ),
+        )
+
+        self.hosting_resources = HostingResourcesStack(
+            self,
+            "HostingResourcesStack",
+            params=HostingResourcesStackParams(
+                rest_api=self.words_backend_stack.words_backend_api.words_backend_api,
+                ssm_parameter=self.words_backend_stack.backend_api_lambda_functions.apigw_custom_header_parameter,
             ),
         )

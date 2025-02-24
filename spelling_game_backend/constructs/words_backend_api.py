@@ -3,6 +3,7 @@
 import json
 from dataclasses import dataclass
 from aws_cdk import (
+    Duration,
     Stack,
     aws_s3 as s3,
     aws_lambda as _lambda,
@@ -11,6 +12,7 @@ from aws_cdk import (
     aws_iam as iam,
 )
 from constructs import Construct
+from config import BaseConfig
 
 
 @dataclass
@@ -20,6 +22,7 @@ class WordsBackendApiParams:
     state_machine: sfn.StateMachine
     generate_questions_lambda: _lambda.Function
     validate_answers_lambda: _lambda.Function
+    custom_authorizer: _lambda.Function
 
 
 class WordsBackendApi(Construct):
@@ -35,6 +38,8 @@ class WordsBackendApi(Construct):
         """Construct a new WordsBackendStateMachine."""
         super().__init__(scope=scope, id=construct_id, **kwargs)
 
+        config = BaseConfig()
+
         # Create the API Gateway
         self.words_backend_api = apigateway.RestApi(
             self,
@@ -45,6 +50,17 @@ class WordsBackendApi(Construct):
                 allow_origins=apigateway.Cors.ALL_ORIGINS,
                 allow_methods=apigateway.Cors.ALL_METHODS,
             ),
+        )
+
+        # Custom Authorizer
+        self.custom_authorizer = apigateway.RequestAuthorizer(
+            self,
+            "LambdaHeaderAuthorizer",
+            handler=params.custom_authorizer,
+            identity_sources=[
+                apigateway.IdentitySource.header(config.apigw_custom_header_name)
+            ],
+            results_cache_ttl=Duration.seconds(30),
         )
 
         self._build_questions_api(params)
@@ -109,6 +125,8 @@ class WordsBackendApi(Construct):
             request_models={"application/json": request_model},
             method_responses=[apigateway.MethodResponse(status_code="200")],
             request_validator=request_validator,
+            authorization_type=apigateway.AuthorizationType.CUSTOM,
+            authorizer=self.custom_authorizer,
         )
 
     def _validate_answers_api(self, params: WordsBackendApiParams):
@@ -189,4 +207,6 @@ class WordsBackendApi(Construct):
             request_models={"application/json": request_model},
             method_responses=[apigateway.MethodResponse(status_code="200")],
             request_validator=request_validator,
+            authorization_type=apigateway.AuthorizationType.CUSTOM,
+            authorizer=self.custom_authorizer,
         )

@@ -217,12 +217,7 @@ class WordsGeneratorStateMachine(Construct):
             "WordGeneratorStateMachine",
             state_machine_type=sfn.StateMachineType.STANDARD,
             definition_body=sfn.DefinitionBody.from_chainable(
-                sfn.Pass(
-                    self,
-                    "Start statemachine",
-                )
-                .next(call_bedrock_task)
-                .next(langages_map)
+                call_bedrock_task.next(langages_map)
             ),
         )
 

@@ -89,6 +89,7 @@ class WordsBackendStack(NestedStack):
                 state_machine=self.words_backend_state_machine.words_backend_state_machine,
                 generate_questions_lambda=self.backend_api_lambda_functions.generate_questions_lambda,
                 validate_answers_lambda=self.backend_api_lambda_functions.validate_answers_lambda,
+                custom_authorizer=self.backend_api_lambda_functions.custom_authorizer,
             ),
         )
 
