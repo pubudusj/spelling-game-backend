@@ -13,6 +13,8 @@ from aws_cdk import (
     aws_iam as iam,
     aws_apigateway as apigateway,
 )
+import aws_cdk.aws_scheduler_alpha as scheduler
+import aws_cdk.aws_scheduler_targets_alpha as targets
 from config import BaseConfig
 
 
@@ -98,4 +100,26 @@ class HostingResourcesStack(NestedStack):
                 ],
                 resources=[self.cloudfront_distribution.distribution_arn],
             )
+        )
+
+        # AWS EventBridge scheduler to update the secure header every 24 hours
+        scheduler_role = iam.Role(
+            self,
+            "SchedulerRole",
+            assumed_by=iam.ServicePrincipal("scheduler.amazonaws.com"),
+        )
+
+        scheduler_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["lambda:InvokeFunction"],
+                resources=[update_secure_header.function_arn],
+            )
+        )
+
+        scheduler.Schedule(
+            self,
+            "Schedule",
+            schedule=scheduler.ScheduleExpression.rate(Duration.hours(6)),
+            target=targets.LambdaInvoke(update_secure_header, role=scheduler_role),
+            description="Schedule to trigger update header lambda function every 6 hours.",
         )
