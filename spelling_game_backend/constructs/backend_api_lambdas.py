@@ -42,7 +42,7 @@ class BackendApiLambdaFunctions(Construct):
             ssm.StringParameter.from_secure_string_parameter_attributes(
                 self,
                 "APIGWCustomHeaderSecureParameter",
-                parameter_name=config.apigw_custom_header_parameter_name,
+                parameter_name=config.apigw_custom_header_ssm_parameter,
             )
         )
 

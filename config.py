@@ -13,9 +13,14 @@ class _Config:
         self._parse_environment_files()
 
         self._words_generation_interval = int(os.getenv("WORDS_GENERATION_INTERVAL", 5))
-
         if self._words_generation_interval < 5:
             raise ValueError("WORDS_GENERATION_INTERVAL must be at least 5")
+
+        self._apigw_custom_header_ssm_parameter = os.getenv(
+            "APIGW_CUSTOM_HEADER_SSM_PARAMETER"
+        )
+        if not self._apigw_custom_header_ssm_parameter:
+            raise RuntimeError("APIGW_CUSTOM_HEADER_SSM_PARAMETER is not set")
 
         self._apigw_custom_header_name = "apigw-cloudfront-token"
 
@@ -49,7 +54,7 @@ class BaseConfig(_Config):
         return self._words_generation_interval
 
     @property
-    def apigw_custom_header_parameter_name(self) -> str:
+    def apigw_custom_header_ssm_parameter(self) -> str:
         """Get the SSM secure parameter name."""
 
-        return self._apigw_custom_header_name
+        return self._apigw_custom_header_ssm_parameter
