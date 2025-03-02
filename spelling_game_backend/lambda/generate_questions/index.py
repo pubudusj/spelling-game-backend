@@ -9,9 +9,9 @@ STATE_MACHINE_ARN = os.environ["STATE_MACHINE_ARN"]
 def lambda_handler(event, context):
     payload = json.loads(event["body"])
     output_headers = {
-        "Access-Control-Allow-Origin": "*",  # TODO: update with the domain input
+        "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "OPTIONS, POST",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Content-Type, X-apigw-cloudfront-token",
     }
     try:
         # Start the Step Function execution

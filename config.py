@@ -22,7 +22,7 @@ class _Config:
         if not self._apigw_custom_header_ssm_parameter:
             raise RuntimeError("APIGW_CUSTOM_HEADER_SSM_PARAMETER is not set")
 
-        self._apigw_custom_header_name = "apigw-cloudfront-token"
+        self._apigw_custom_header_name = "X-apigw-cloudfront-token"
 
     @staticmethod
     def _parse_environment_files() -> None:

@@ -105,6 +105,7 @@ class BackendApiLambdaFunctions(Construct):
             environment={
                 "SSM_PARAMETER_NAME": self.apigw_custom_header_parameter.parameter_name,
                 "CUSTOM_HEADER_KEY": config.apigw_custom_header_name,
+                "APIGW_PATH_PATTERN": f"arn:aws:execute-api:{Stack.of(self).region}:{Stack.of(self).account}:*/prod/POST/",
             },
         )
 

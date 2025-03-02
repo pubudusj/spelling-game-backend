@@ -48,7 +48,7 @@ def lambda_handler(event, context):
     output_headers = {
         "Access-Control-Allow-Origin": "*",  # TODO: update with the domain input
         "Access-Control-Allow-Methods": "OPTIONS, POST",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Content-Type, X-apigw-cloudfront-token",
     }
 
     return {

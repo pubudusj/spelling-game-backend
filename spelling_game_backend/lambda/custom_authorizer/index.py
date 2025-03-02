@@ -4,6 +4,12 @@ import boto3
 ssm = boto3.client("ssm")
 SSM_PARAMETER_NAME = os.environ["SSM_PARAMETER_NAME"]
 CUSTOM_HEADER_KEY = os.environ["CUSTOM_HEADER_KEY"]
+APIGW_PATH_PATTERN = os.environ["APIGW_PATH_PATTERN"]
+
+resources = [
+    f"{APIGW_PATH_PATTERN}questions",
+    f"{APIGW_PATH_PATTERN}answers",
+]
 
 
 def fetch_header_value():
@@ -28,7 +34,7 @@ def lambda_handler(event, context):
                 {
                     "Action": "execute-api:Invoke",
                     "Effect": effect,
-                    "Resource": event["methodArn"],
+                    "Resource": resources,
                 }
             ],
         },

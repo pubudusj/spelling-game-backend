@@ -12,6 +12,7 @@ from aws_cdk import (
     aws_lambda as _lambda,
     aws_iam as iam,
     aws_apigateway as apigateway,
+    custom_resources as cr,
 )
 import aws_cdk.aws_scheduler_alpha as scheduler
 import aws_cdk.aws_scheduler_targets_alpha as targets
@@ -34,7 +35,7 @@ class HostingResourcesStack(NestedStack):
         scope: Stack,
         construct_id: str,
         params: HostingResourcesStackParams,
-        **kwargs
+        **kwargs,
     ) -> None:
         """Construct a new HostingResourcesStack."""
         super().__init__(scope, construct_id, **kwargs)
@@ -54,7 +55,8 @@ class HostingResourcesStack(NestedStack):
             "WordGameFrontendDistribution",
             default_behavior=cloudfront.BehaviorOptions(
                 origin=origins.S3Origin(self.hosting_s3_bucket),
-                viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+                viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+                allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
             ),
             default_root_object="index.html",
             error_responses=[
@@ -65,6 +67,20 @@ class HostingResourcesStack(NestedStack):
                 )
             ],
             price_class=cloudfront.PriceClass.PRICE_CLASS_200,
+        )
+
+        self.cloudfront_distribution.add_behavior(
+            path_pattern="/prod/*",
+            origin=origins.RestApiOrigin(
+                params.rest_api,
+                custom_headers={
+                    f"{apigw_custom_header_key}": "abc123",  # This will be rotated as soon as the stack is deployed
+                },
+                origin_path="/",
+            ),
+            allowed_methods=cloudfront.AllowedMethods.ALLOW_ALL,
+            viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+            cache_policy=cloudfront.CachePolicy.CACHING_DISABLED,
         )
 
         # Update cloudfront distribution with the custom header
@@ -122,4 +138,40 @@ class HostingResourcesStack(NestedStack):
             schedule=scheduler.ScheduleExpression.rate(Duration.hours(6)),
             target=targets.LambdaInvoke(update_secure_header, role=scheduler_role),
             description="Schedule to trigger update header lambda function every 6 hours.",
+        )
+
+        # IAM Role for custom resource
+        custom_resource_role = iam.Role(
+            scope=self,
+            id="CustomResourceRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+        )
+
+        custom_resource_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["lambda:InvokeFunction"],
+                resources=[update_secure_header.function_arn],
+            )
+        )
+
+        # Custom resource to update the secure header on stack create
+        cr.AwsCustomResource(
+            self,
+            "UpdateSecureHeaderOnCreateCustomResource",
+            on_create=cr.AwsSdkCall(
+                service="lambda",
+                action="Invoke",
+                physical_resource_id=cr.PhysicalResourceId.of(
+                    "UpdateSecureHeaderOnCreateCustomResource"
+                ),
+                parameters={
+                    "FunctionName": update_secure_header.function_name,
+                    "InvocationType": "Event",
+                    "Payload": '{"RequestType": "Create"}',
+                },
+            ),
+            policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
+                resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
+            ),
+            role=custom_resource_role,
         )
